@@ -3,10 +3,10 @@ from __future__ import annotations
 from difflib import SequenceMatcher
 
 from app.models import CodeChunk, Requirement
-from app.retrieval.vector_store import InMemoryVectorStore
 
 
 def keyword_search(requirement: Requirement, chunks: list[CodeChunk], limit: int = 10) -> list[CodeChunk]:
+    # Ищем простые совпадения слов из требования в тексте кода.
     words = [w.lower() for w in requirement.text.split() if len(w) > 2]
     scored: list[tuple[int, CodeChunk]] = []
     for chunk in chunks:
@@ -18,7 +18,8 @@ def keyword_search(requirement: Requirement, chunks: list[CodeChunk], limit: int
     return [c for _, c in scored[:limit]]
 
 
-def fallback_similarity_search(requirement: Requirement, chunks: list[CodeChunk], limit: int = 10) -> list[CodeChunk]:
+def similarity_search(requirement: Requirement, chunks: list[CodeChunk], limit: int = 10) -> list[CodeChunk]:
+    # Если слов почти нет, используем грубую похожесть текста.
     scored: list[tuple[float, CodeChunk]] = []
     for chunk in chunks:
         ratio = SequenceMatcher(None, requirement.text.lower(), chunk.code_excerpt.lower()).ratio()
@@ -28,11 +29,8 @@ def fallback_similarity_search(requirement: Requirement, chunks: list[CodeChunk]
     return [c for _, c in scored[:limit]]
 
 
-def find_relevant_chunks(requirement: Requirement, chunks: list[CodeChunk], store: InMemoryVectorStore, limit: int) -> list[CodeChunk]:
-    first_pass = keyword_search(requirement, chunks, limit)
-    if first_pass:
-        return first_pass
-    vector_like = store.search(requirement.text, limit)
-    if vector_like:
-        return vector_like
-    return fallback_similarity_search(requirement, chunks, limit)
+def find_relevant_chunks(requirement: Requirement, chunks: list[CodeChunk], limit: int) -> list[CodeChunk]:
+    found = keyword_search(requirement, chunks, limit)
+    if found:
+        return found
+    return similarity_search(requirement, chunks, limit)

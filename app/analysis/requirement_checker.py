@@ -6,6 +6,7 @@ from app.openai_client import OpenAIClient
 
 
 def _local_mvp_check(requirement: Requirement, relevant_chunks: list[CodeChunk]) -> RequirementCheckResult:
+    # Простой безопасный режим: выводы только по найденным кускам кода.
     if not relevant_chunks:
         return RequirementCheckResult(
             requirement_id=requirement.requirement_id,
@@ -26,13 +27,13 @@ def _local_mvp_check(requirement: Requirement, relevant_chunks: list[CodeChunk])
         status = CheckStatus.UNCLEAR
         category = CheckCategory.NONE
         summary = "Есть связанный код, но без AI-проверки нельзя уверенно подтвердить полное соответствие."
-        reasoning = "MVP fallback обнаружил совпадения по ключевым словам, но это не формальная верификация."
+        reasoning = "Найдены совпадения по ключевым словам, но этого мало для строгого вывода."
         confidence = 0.45
     else:
         status = CheckStatus.MISSING
         category = CheckCategory.MISSING_OR_NOT_FOUND
         summary = "Найдены слабо связанные фрагменты, явной реализации требования не видно."
-        reasoning = "Низкое покрытие ключевых слов требования в найденных чанках."
+        reasoning = "Ключевые слова требования почти не встречаются в найденных чанках."
         confidence = 0.7
 
     return RequirementCheckResult(
@@ -48,8 +49,11 @@ def _local_mvp_check(requirement: Requirement, relevant_chunks: list[CodeChunk])
 
 
 def check_requirement(requirement: Requirement, relevant_chunks: list[CodeChunk], client: OpenAIClient, use_ai: bool = True) -> RequirementCheckResult:
+    # Если есть API-ключ и AI не отключен — используем модель.
     if use_ai and client.enabled:
         prompt = build_check_prompt(requirement, relevant_chunks)
         raw = client.structured_check(prompt)
         return RequirementCheckResult.model_validate(raw)
+
+    # Иначе используем локальную простую проверку.
     return _local_mvp_check(requirement, relevant_chunks)

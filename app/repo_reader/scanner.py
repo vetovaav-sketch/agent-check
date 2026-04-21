@@ -7,6 +7,7 @@ from app.repo_reader.filters import should_exclude_dir, should_exclude_file
 
 
 def scan_repository(repo_path: str, max_files: int | None = None, include_tests: bool = False) -> List[Path]:
+    # Проходим по всем файлам и отбрасываем мусорные папки/форматы.
     root = Path(repo_path)
     files: List[Path] = []
 
@@ -21,6 +22,7 @@ def scan_repository(repo_path: str, max_files: int | None = None, include_tests:
             continue
         if not include_tests and "test" in path.name.lower():
             continue
+
         files.append(path)
         if max_files and len(files) >= max_files:
             break
