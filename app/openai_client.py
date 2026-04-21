@@ -3,8 +3,6 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from openai import OpenAI
-
 from app.models import AppConfig
 
 
@@ -12,7 +10,11 @@ class OpenAIClient:
     def __init__(self, config: AppConfig):
         self._enabled = bool(config.openai_api_key)
         self._model = config.model_name
-        self._client = OpenAI(api_key=config.openai_api_key) if self._enabled else None
+        self._client = None
+        if self._enabled:
+            from openai import OpenAI
+
+            self._client = OpenAI(api_key=config.openai_api_key)
 
     @property
     def enabled(self) -> bool:

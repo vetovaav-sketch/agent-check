@@ -1,22 +1,24 @@
 from __future__ import annotations
 
 from app.models import CodeChunk
+from app.retrieval.embeddings import cosine_similarity, embed_text
 
 
 class InMemoryVectorStore:
     def __init__(self) -> None:
-        self._chunks: list[CodeChunk] = []
+        self._entries: list[tuple[CodeChunk, dict[str, float]]] = []
 
     def add_chunks(self, chunks: list[CodeChunk]) -> None:
-        self._chunks.extend(chunks)
+        for chunk in chunks:
+            text = f"{chunk.file_path}\n{chunk.code_excerpt}"
+            self._entries.append((chunk, embed_text(text)))
 
     def search(self, query: str, limit: int = 8) -> list[CodeChunk]:
-        tokens = {t.lower() for t in query.split() if len(t) > 2}
-        scored: list[tuple[int, CodeChunk]] = []
-        for chunk in self._chunks:
-            text = chunk.code_excerpt.lower()
-            score = sum(1 for token in tokens if token in text)
+        query_vec = embed_text(query)
+        scored: list[tuple[float, CodeChunk]] = []
+        for chunk, vec in self._entries:
+            score = cosine_similarity(query_vec, vec)
             if score > 0:
                 scored.append((score, chunk))
         scored.sort(key=lambda x: x[0], reverse=True)
-        return [c for _, c in scored[:limit]]
+        return [chunk for _, chunk in scored[:limit]]
